@@ -1,0 +1,5 @@
+venv
+*.wav
+*.yaml
+__pycache__
+*token*
