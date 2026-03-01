@@ -18,7 +18,26 @@ class Handler():
         current_scene_name = self.obs_manager.get_current_scene_name()
         running_args : Dict[str, Any] = {}
         video_counter = 0
+        video_duration_counter = 0
         audio_counter = 0
+        audio_duration_counter = 0
+        image_counter = 0
+
+        # First pass to calculte input durations because it takes a while
+        for idx, action in enumerate(self.config):
+            action_name = list(action.keys())[0]
+            match action_name:
+                case 'play_video':
+                    video_path = action[action_name].get('video', '')
+                    duration = tools.get_video_duration(video_path)
+                    running_args[f'video_{video_counter}_duration'] = duration
+                    video_duration_counter += 1
+                case 'play_sound':
+                    audio_path = action[action_name].get('sound', '')
+                    duration = tools.get_audio_duration(audio_path)
+                    running_args[f'audio_{audio_counter}_duration'] = duration
+                    audio_duration_counter += 1
+
 
         for idx, action in enumerate(self.config):
             action_name = list(action.keys())[0]
@@ -28,7 +47,6 @@ class Handler():
                     volume = action[action_name].get('volume', -10.0)
                     monitoring_type = action[action_name].get('monitoring_type', 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT')
                     loop = action[action_name].get('loop', False)
-                    duration = tools.get_video_duration(video_path)
 
                     # Create video input
                     video_input_id, video_scene_item_id = self.obs_manager.create_input(
@@ -54,14 +72,13 @@ class Handler():
                     )
 
                     running_args[f'video_{video_counter}'] = video_scene_item_id
-                    running_args[f'video_{video_counter}_duration'] = duration
+                    running_args[f'video_{video_counter}_uuid'] = video_input_id
                     video_counter += 1
 
                 case 'play_sound':
                     audio_path = action[action_name].get('sound', '')
                     volume = action[action_name].get('volume', -10.0)
                     monitoring_type = action[action_name].get('monitoring_type', 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT')
-                    duration = tools.get_audio_duration(audio_path)
 
                     # Create audio input
                     audio_input_id, audio_scene_item_id = self.obs_manager.create_input(
@@ -87,8 +104,49 @@ class Handler():
                     )
 
                     running_args[f'audio_{audio_counter}'] = audio_scene_item_id
-                    running_args[f'audio_{audio_counter}_duration'] = duration
+                    running_args[f'audio_{audio_counter}_uuid'] = audio_input_id
                     audio_counter += 1
+
+                case 'screenshot':
+                    image_path = self.obs_manager.screenshot_scene(current_scene_name)
+
+                    running_args[f'screenshot'] = image_path
+
+                case 'show_image':
+                    image_path = action[action_name].get('image', '')
+                    image_path = str(image_path).format_map(running_args)
+
+                    image_input_id, image_scene_id = self.obs_manager.create_input(
+                        scene_name=current_scene_name,
+                        input_kind="image_source",
+                        input_settings={
+                            "file": image_path
+                        }
+                    )
+
+                    running_args[f'image_{image_counter}'] = image_scene_id
+                    running_args[f'image_{image_counter}_uuid'] = image_input_id
+                    image_counter += 1
+
+                case 'transform':
+                    input = action[action_name].get('input', '')
+                    input = str(input).format_map(running_args)
+                    parsed_settings = {}
+                    settings = action[action_name].get('settings', {})
+                    for key, value in settings.items():
+                        parsed_settings[key] = float(value)
+                    self.obs_manager.set_scene_item_transform(
+                        current_scene_name,
+                        input,
+                        parsed_settings
+                    )
+
+                case 'add_filter':
+                    filter = str(action[action_name].get('filter', ''))
+                    input_uuid = action[action_name].get('input_uuid', '')
+                    input_uuid = str(input_uuid).format_map(running_args)
+                    if filter == 'green screen':
+                        self.obs_manager.apply_green_screen(input_uuid)
 
                 case 'wait':
                     duration_val = action[action_name].get('duration', '0')

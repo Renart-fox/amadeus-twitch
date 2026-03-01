@@ -16,6 +16,9 @@ follow:
     default:
         Handler
     ...
+command:
+    tts:
+        Handler
 """
 handlers : Dict[str, Dict[str, Handler]] = {}
 
@@ -24,10 +27,10 @@ async def add_event(event: Any):
     events.put(event)
 
 
-async def register_handler(event_type: str, handler: Handler, broadcaster_user_name: str = "default"):
+async def register_handler(event_type: str, handler: Handler, handler_name: str = "default"):
     if event_type not in handlers:
         handlers[event_type] = {}
-    handlers[event_type][broadcaster_user_name] = handler
+    handlers[event_type][handler_name] = handler
 
 
 async def process_events():
@@ -52,6 +55,9 @@ async def process_events():
                     "user": event.event.user_name,
                 }
                 handler = handlers.get(event_type, {}).get("default")
+            case 'ChannelPointsCustomRewardRedemptionAddEvent':
+                event_type = 'command'
+                handler = handlers.get(event_type, {}).get(event.event.reward.title)
             case _:
                 print(f'Unknown event type "{type(event)}"')
                 continue

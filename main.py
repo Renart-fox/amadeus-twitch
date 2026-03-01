@@ -124,13 +124,7 @@ async def on_tourne(cmd: ChatCommand):
 
 
 async def on_reward_redeemed(event: ChannelPointsCustomRewardRedemptionAddEvent):
-    if event.event.reward.title == 'Orson Welles':
-        with open(f'F:\\Twitch\\Superpositions\\queue\\{uuid.uuid4()}.json', 'w') as f:
-            json.dump({
-                'user': event.event.user_name,
-                'action': 'Orson Welles',
-                'message': ''
-            }, f)
+    await add_event(event)
 
 
 async def on_raid(event: ChannelRaidEvent):
@@ -153,7 +147,7 @@ async def run_twitch_backend():
     eventsub.start()
     await eventsub.listen_channel_points_custom_reward_redemption_add(user.id, on_reward_redeemed) # type: ignore
     await eventsub.listen_channel_raid(to_broadcaster_user_id=user.id, callback=add_event) # type: ignore
-    await eventsub.listen_channel_follow_v2(broadcaster_user_id=user.id, moderator_user_id=user.id, callback=on_follow) # type: ignore
+    await eventsub.listen_channel_follow_v2(broadcaster_user_id=user.id, moderator_user_id=user.id, callback=add_event) # type: ignore
 
     chat.register_event(ChatEvent.READY, on_chat_ready)
 
@@ -168,6 +162,15 @@ async def run_twitch_backend():
         - play_video:
             video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\Jet crash on green screen.mp4"
             volume: -30.0
+        - transform:
+            input: "{video_0}"
+            settings:
+                scaleX: -1.5
+                scaleY: 1.5
+                positionX: 1920
+        - add_filter:
+            filter: "green screen"
+            input_uuid : "{video_0_uuid}"
         - play_sound:
             sound: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\sounds\\\\Square_Coucou Miel.wav"
             volume: 0.0
@@ -194,23 +197,44 @@ async def run_twitch_backend():
         - remove_input:
             item: "{audio_0}"
                                       ''')
+    
+    orson_welles_handler = Handler('''
+        - screenshot:
+            scene: global
+        - show_image:
+            image: "{screenshot}"
+        - play_video:
+            video: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\orsonwelles.mov"
+            volume: -10.0
+        - wait:
+            duration: "{video_0_duration}"
+        - remove_input:
+            item: "{image_0}"
+        - remove_input:
+            item: "{video_0}"
+                                   ''')
 
     await register_handler('raid', raid_hardsquare_handler, 'HardSquare')
     await register_handler('follow', default_follow_handler, 'default')
-
+    await register_handler('command', orson_welles_handler, 'Orson Welles')
 
     c = ChannelRaidEvent()
     c.event = ChannelRaidData()
     c.event.from_broadcaster_user_name = 'HardSquare'
     c.event.viewers = 69
     await on_raid(c)
+    """
+        c = ChannelRaidEvent()
+        c.event = ChannelRaidData()
+        c.event.from_broadcaster_user_name = 'HardSquare'
+        c.event.viewers = 69
+        await on_raid(c)
 
-    c = ChannelFollowEvent()
-    c.event = ChannelFollowData()
-    c.event.user_name = 'ehfioleazfhaolifhapiolfnhalmf'
-    await on_follow(c)
-
-    # handler.process()
+        c = ChannelFollowEvent()
+        c.event = ChannelFollowData()
+        c.event.user_name = 'ehfioleazfhaolifhapiolfnhalmf'
+        await on_follow(c)
+    """
 
     try:
         input('press ENTER to stop\n')

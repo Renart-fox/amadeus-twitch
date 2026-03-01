@@ -1,5 +1,6 @@
 from typing import Dict
 from uuid import uuid4
+import os
 
 from config.amadeus_config import Amadeus_Config
 
@@ -105,5 +106,15 @@ class OBS_Manager():
                 sceneItemBlendMode=blend_mode
             ))
             return res
+        
+        
+        def screenshot_scene(self, scene_name: str):
+            path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'screen.png')
+            self.ws.call(requests.SaveSourceScreenshot(
+                sourceName=scene_name,
+                imageFormat='png',
+                imageFilePath=path
+            ))
+            return path
     
     _obs_manager : _OBS_Manager = None

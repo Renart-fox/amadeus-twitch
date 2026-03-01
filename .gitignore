@@ -2,5 +2,7 @@ venv
 *.wav
 *.mp4
 *.yaml
+*.mov
+*.png
 __pycache__
 *token*
