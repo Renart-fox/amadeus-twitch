@@ -88,69 +88,6 @@ async def on_message(msg: ChatMessage):
 
 async def on_follow(event: ChannelFollowEvent):
     await add_event(event)
-    """
-    duration = tools.get_video_duration('F:\\Twitch\\Amadeus\\assets\\videos\\Makise.Kurisu.full.2733824.gif')
-    print(f'video duration: {duration}')
-    video_input_id, video_scene_item_id = obs_manager.create_input(
-        scene_name=current_scene_name,
-        input_kind="ffmpeg_source",
-        input_settings={
-            "local_file": 'F:\\Twitch\\Amadeus\\assets\\videos\\Makise.Kurisu.full.2733824.gif',
-            "is_local_file": True,
-            "looping": True
-        })
-    
-    obs_manager.set_scene_item_transform(
-                scene_name=current_scene_name,
-                scene_item_id=video_scene_item_id,
-                transform={
-                    'positionX': 683,
-                }
-            )
-
-    audio_input_id, audio_scene_item_id = obs_manager.create_input(
-        scene_name=current_scene_name,
-        input_kind="ffmpeg_source",
-        input_settings={
-            "local_file": 'F:\\Twitch\\Amadeus\\assets\\sounds\\Zone Clear - Sonic Pinball Party.mp3',
-            "is_local_file": True,
-            "looping": False
-        }
-    )
-
-    obs_manager.set_volume(
-        input_id=audio_input_id,
-        volume=-20.0
-    )
-
-    obs_manager.set_input_audio_monitor_type(
-        input_id=audio_input_id,
-        monitor_type='OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'
-    )
-
-    text_input_id, text_scene_item_id = obs_manager.create_input(scene_name=current_scene_name, input_kind='text_gdiplus_v3', input_settings={
-        "text": f'Merci {event.event.user_name} pour le follow !',
-        "font": {
-            "face": 'Courier New',
-            "size": 48,
-        },
-        "align": 'center'
-    })
-
-    obs_manager.set_scene_item_transform(
-                scene_name=current_scene_name,
-                scene_item_id=text_scene_item_id,
-                transform={
-                    'positionX': 488,
-                    'positionY': 440
-                }
-            )
-    await asyncio.sleep(duration * 4)
-
-    obs_manager.remove_input(current_scene_name, video_scene_item_id)
-    obs_manager.remove_input(current_scene_name, audio_scene_item_id)
-    obs_manager.remove_input(current_scene_name, text_scene_item_id)
-    """
 
 
 async def on_prout(cmd: ChatCommand):
@@ -198,77 +135,6 @@ async def on_reward_redeemed(event: ChannelPointsCustomRewardRedemptionAddEvent)
 
 async def on_raid(event: ChannelRaidEvent):
     await add_event(event)
-    """
-    match event.event.from_broadcaster_user_name:
-        case 'HardSquare':
-            audio_duration = tools.get_audio_duration('F:\\Twitch\\Amadeus\\assets\\sounds\\Square_Coucou Miel.wav')
-
-            audio_input_id, audio_scene_item_id = obs_manager.create_input(
-                scene_name=current_scene_name,
-                input_kind="ffmpeg_source",
-                input_settings={
-                    "local_file": 'F:\\Twitch\\Amadeus\\assets\\sounds\\Square_Coucou Miel.wav',
-                    "is_local_file": True,
-                    "looping": False
-                }
-            )
-
-            print(audio_input_id)
-            obs_manager.set_volume(
-                input_id=audio_input_id,
-                volume=-10.0
-            )
-
-            obs_manager.set_input_audio_monitor_type(
-                input_id=audio_input_id,
-                monitor_type='OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'
-            )
-
-            duration = tools.get_video_duration('F:\\Twitch\\Amadeus\\assets\\videos\\Jet crash on green screen.mp4')
-            print(f'video duration: {duration}')
-            video_input_id, video_scene_item_id = obs_manager.create_input(
-                scene_name=current_scene_name,
-                input_kind="ffmpeg_source",
-                input_settings={
-                    "local_file": 'F:\\Twitch\\Amadeus\\assets\\videos\\Jet crash on green screen.mp4',
-                    "is_local_file": True,
-                    "looping": False
-                })
-
-            res = obs_manager.set_scene_item_transform(
-                scene_name=current_scene_name,
-                scene_item_id=video_scene_item_id,
-                transform={
-                    'scaleX': -1.5,
-                    'scaleY': 1.5,
-                    'positionX': 1920
-                }
-            )
-
-            print(res)
-            obs_manager.set_volume(
-                input_id=video_input_id,
-                volume=-25.0
-            )
-
-            obs_manager.set_input_audio_monitor_type(
-                input_id=video_input_id,
-                monitor_type='OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'
-            )
-
-            obs_manager.apply_green_screen(video_input_id)
-            
-            await asyncio.sleep(duration)
-
-            print('removing input')
-            obs_manager.remove_input(current_scene_name, video_scene_item_id)
-            obs_manager.remove_input(current_scene_name, audio_scene_item_id)
-
-        case 'JackChiwac':
-            pass
-        case _:
-            pass
-    """
 
 
 async def run_twitch_backend():
@@ -297,25 +163,6 @@ async def run_twitch_backend():
     chat.register_command('tourne', on_tourne)
 
     chat.start()
-
-    
-
-    """
-    
-    """
-
-    
-    # handler = Handler('raid', ("""
-    # raider: HardSquare
-    # viewer_count: 69
-    # actions:
-    #  - play_video:
-    #     video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\Jet crash on green screen.mp4"
-    #     volume: -25.0
-    #  - play_sound:
-    #     sound: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\sounds\\\\Square_Coucou Miel.wav"
-    #     volume: -10.0
-    # """))
 
     raid_hardsquare_handler = Handler('''
         - play_video:
