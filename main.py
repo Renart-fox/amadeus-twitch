@@ -5,7 +5,7 @@ from config.amadeus_config import Amadeus_Config
 from obs.obs_manager import OBS_Manager
 from utils import tools
 
-from twitch.handlers.event_manager import process_events, add_event, register_handler
+from twitch.handlers.event_manager import process_events, add_event, register_handler, set_chat
 from twitch.handlers.handler import Handler
 
 from twitchAPI.twitch import Twitch
@@ -66,7 +66,8 @@ DASHBOARD_SCOPES = [
     AuthScope.CHANNEL_MANAGE_REDEMPTIONS,
     AuthScope.MODERATOR_READ_FOLLOWERS,
     AuthScope.CHANNEL_READ_SUBSCRIPTIONS,
-    AuthScope.CHANNEL_MODERATE
+    AuthScope.CHANNEL_MODERATE,
+    AuthScope.MODERATOR_MANAGE_SHOUTOUTS
                     ]
 TARGET_CHANNEL = 'mielikki_fox'
 
@@ -80,6 +81,7 @@ with open("tokens.json", "r") as f:
 async def on_chat_ready(event: EventData):
     print("Chat is ready!")
     await event.chat.join_room(TARGET_CHANNEL)
+    await set_chat(event.chat)
 
 
 async def on_message(msg: ChatMessage):
@@ -159,6 +161,8 @@ async def run_twitch_backend():
     chat.start()
 
     raid_hardsquare_handler = Handler('''
+        - send_message:
+            text: "Merci {raider} pour le raid !"
         - play_video:
             video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\Jet crash on green screen.mp4"
             volume: -30.0
@@ -174,13 +178,46 @@ async def run_twitch_backend():
         - play_sound:
             sound: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\sounds\\\\Square_Coucou Miel.wav"
             volume: 0.0
+        - show_text:
+            text: "{raider}\\nvient de tuer {viewers} personnes !!!"
+        - transform:
+            input: "{text_0}"
+            settings:
+                positionX: 643
+                positionY: 493
         - wait:
             duration: "{video_0_duration}"
         - remove_input:
             item: "{video_0}"
         - remove_input:
             item: "{audio_0}"
+        - remove_input:
+            item: "{text_0}"
                                       ''')
+
+    default_raid_handler = Handler('''
+        - send_message:
+            text: "Merci {raider} pour le raid !"
+        - play_video:
+            video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\tv_time.mp4"
+            volume: -10.0
+        - show_text:
+            text: "{raider}\\narrive avec {viewers} personnes !!!"
+        - add_filter:
+            filter: "green screen"
+            input_uuid : "{video_0_uuid}"
+        - transform:
+            input: "{text_0}"
+            settings:
+                positionX: 643
+                positionY: 493
+        - wait:
+            duration: "{video_0_duration}"
+        - remove_input:
+            item: "{video_0}"
+        - remove_input:
+            item: "{text_0}"
+                                   ''')
     
     default_follow_handler = Handler('''
         - play_video:
@@ -213,23 +250,35 @@ async def run_twitch_backend():
         - remove_input:
             item: "{video_0}"
                                    ''')
+    
+    tts_handler = Handler('''
+        - text_to_speech:
+            text: "{user_message}"
+        - play_sound:
+            sound: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\sounds\\\\output.mp3"
+        - wait:
+            duration: "{audio_0_duration}"
+        - remove_input:
+            item: "{audio_0}"
+    ''')
 
     await register_handler('raid', raid_hardsquare_handler, 'HardSquare')
+    await register_handler('raid', default_raid_handler, 'default')
     await register_handler('follow', default_follow_handler, 'default')
     await register_handler('command', orson_welles_handler, 'Orson Welles')
-
+    await register_handler('command', tts_handler, 'TTS')
+    
+    
+    await asyncio.sleep(5)
     c = ChannelRaidEvent()
     c.event = ChannelRaidData()
-    c.event.from_broadcaster_user_name = 'HardSquare'
+    c.event.from_broadcaster_user_name = 'JackChiwac'
+    c.event.to_broadcaster_user_id = '181464807'
+    c.event.from_broadcaster_user_id = '423130163'
     c.event.viewers = 69
     await on_raid(c)
+    
     """
-        c = ChannelRaidEvent()
-        c.event = ChannelRaidData()
-        c.event.from_broadcaster_user_name = 'HardSquare'
-        c.event.viewers = 69
-        await on_raid(c)
-
         c = ChannelFollowEvent()
         c.event = ChannelFollowData()
         c.event.user_name = 'ehfioleazfhaolifhapiolfnhalmf'

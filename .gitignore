@@ -1,8 +1,6 @@
 venv
-*.wav
-*.mp4
+obs/*.png
 *.yaml
-*.mov
-*.png
+assets/*
 __pycache__
 *token*

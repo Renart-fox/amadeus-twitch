@@ -1,8 +1,10 @@
 from typing import List, Any, Dict
 import queue
+from twitchAPI.chat import Chat
 from twitch.handlers.handler import Handler
 
 events : queue.Queue[Any] = queue.Queue()
+chat: Chat = None # type: ignore
 
 """_summary_
 raid:
@@ -33,6 +35,11 @@ async def register_handler(event_type: str, handler: Handler, handler_name: str 
     handlers[event_type][handler_name] = handler
 
 
+async def set_chat(t_chat: Chat):
+    global chat
+    chat = t_chat
+
+
 async def process_events():
     print("Processing events...")
     while True:
@@ -42,11 +49,13 @@ async def process_events():
         kwargs = {}
         match type(event).__name__:
             case 'ChannelRaidEvent':
+                await chat.twitch.send_a_shoutout(event.event.to_broadcaster_user_id, event.event.from_broadcaster_user_id, event.event.to_broadcaster_user_id)
                 event_type = 'raid'
                 broadcaster_user_name = event.event.from_broadcaster_user_name
                 kwargs = {
-                    "raider": event.event.from_broadcaster_user_name,
-                    "viewers": event.event.viewers
+                    'raider': event.event.from_broadcaster_user_name,
+                    'viewers': event.event.viewers,
+                    'chat': chat
                 }
                 handler = handlers.get(event_type, {}).get(broadcaster_user_name) or handlers.get(event_type, {}).get("default")
             case 'ChannelFollowEvent':
@@ -57,6 +66,9 @@ async def process_events():
                 handler = handlers.get(event_type, {}).get("default")
             case 'ChannelPointsCustomRewardRedemptionAddEvent':
                 event_type = 'command'
+                kwargs = {
+                    'user_message': event.event.user_input
+                }
                 handler = handlers.get(event_type, {}).get(event.event.reward.title)
             case _:
                 print(f'Unknown event type "{type(event)}"')

@@ -22,6 +22,7 @@ class Handler():
         audio_counter = 0
         audio_duration_counter = 0
         image_counter = 0
+        text_counter = 0
 
         # First pass to calculte input durations because it takes a while
         for idx, action in enumerate(self.config):
@@ -33,10 +34,13 @@ class Handler():
                     running_args[f'video_{video_counter}_duration'] = duration
                     video_duration_counter += 1
                 case 'play_sound':
-                    audio_path = action[action_name].get('sound', '')
-                    duration = tools.get_audio_duration(audio_path)
-                    running_args[f'audio_{audio_counter}_duration'] = duration
-                    audio_duration_counter += 1
+                    try:
+                        audio_path = action[action_name].get('sound', '')
+                        duration = tools.get_audio_duration(audio_path)
+                        running_args[f'audio_{audio_counter}_duration'] = duration
+                        audio_duration_counter += 1
+                    except Exception as e:
+                        pass
 
 
         for idx, action in enumerate(self.config):
@@ -128,6 +132,27 @@ class Handler():
                     running_args[f'image_{image_counter}_uuid'] = image_input_id
                     image_counter += 1
 
+                case 'show_text':
+                    text = str(action[action_name].get('text', ''))
+                    text = text.format_map(kwargs)
+                    
+                    text_input_id, text_scene_item_id = self.obs_manager.create_input(
+                        current_scene_name,
+                        input_kind="text_gdiplus_v3",
+                        input_settings={
+                            "text": text,
+                            "font": {
+                                "face": 'Courier New',
+                                "size": 48,
+                            },
+                            "align": 'center'
+                        }
+                    )
+                    
+                    running_args[f'text_{text_counter}'] = text_scene_item_id
+                    running_args[f'text_{text_counter}_uuid'] = text_input_id
+                    text_counter += 1
+
                 case 'transform':
                     input = action[action_name].get('input', '')
                     input = str(input).format_map(running_args)
@@ -164,3 +189,19 @@ class Handler():
                         item_id
                     )
                     print(res)
+
+                case 'send_message':
+                    print('Doit envoyer message')
+                    text = str(action[action_name].get('text', ''))
+                    text = text.format_map(kwargs)
+                    print(f'Envoi du message: {text}')
+                    chat = kwargs.get('chat', None)
+                    if chat is not None:
+                        print('Envoi du message au chat...')
+                        await chat.send_message('mielikki_fox', text)
+
+                case 'text_to_speech':
+                    text = str(action[action_name].get('text', ''))
+                    text = text.format_map(kwargs)
+                    duration = await tools.create_text_to_speech_audio(text)
+                    running_args[f'audio_{audio_counter}_duration'] = duration
