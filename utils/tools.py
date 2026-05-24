@@ -2,6 +2,7 @@ import librosa
 import subprocess
 import json
 import edge_tts
+from googletrans import Translator
 
 # Uses librosa to get the duration of an audio file, and adds 1 second to it to account for any potential discrepancies.
 def get_audio_duration(file_path):
@@ -18,7 +19,28 @@ def get_video_duration(video_path):
     return float(duration)
 
 
+def apply_reverb_ffmpeg(input_path, output_path):
+    command = [
+        'ffmpeg',
+        '-y',
+        '-hide_banner',
+        '-i', input_path,
+        '-af', 'aecho=0.8:0.88:20:0.3',
+        output_path,
+        '-loglevel', 'error'
+    ]
+    subprocess.run(command, check=True)
+
+
+async def translate_text(text):
+    async with Translator() as translator:
+        result = await translator.translate(text, dest='ja')
+        return result.text
+
+
 async def create_text_to_speech_audio(text) -> float:
-    communicate = edge_tts.Communicate(text, voice="fr-CH-ArianeNeural", pitch="+5Hz")
+    #translation = await translate_text(text)
+    communicate = edge_tts.Communicate(text, voice="fr-CH-ArianeNeural", pitch="+11Hz", rate="+33%")
     await communicate.save("F:\\Twitch\\Amadeus\\assets\\sounds\\output.mp3")
-    return get_audio_duration("F:\\Twitch\\Amadeus\\assets\\sounds\\output.mp3")
+    apply_reverb_ffmpeg("F:\\Twitch\\Amadeus\\assets\\sounds\\output.mp3", "F:\\Twitch\\Amadeus\\assets\\sounds\\output_reverb.mp3")
+    return get_audio_duration("F:\\Twitch\\Amadeus\\assets\\sounds\\output_reverb.mp3")

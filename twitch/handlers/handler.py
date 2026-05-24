@@ -10,7 +10,7 @@ from utils import tools
 class Handler():
     def __init__(self, config: str) -> None:
         self.config = yaml.safe_load(config)
-        self.obs_manager = OBS_Manager().get_instance()
+        self.obs_manager = OBS_Manager()
 
     async def process(self, kwargs: dict = {}):
         print(f'Processing with kwargs: {kwargs}')
@@ -25,7 +25,7 @@ class Handler():
         text_counter = 0
 
         # First pass to calculte input durations because it takes a while
-        for idx, action in enumerate(self.config):
+        for _, action in enumerate(self.config):
             action_name = list(action.keys())[0]
             match action_name:
                 case 'play_video':
@@ -39,11 +39,11 @@ class Handler():
                         duration = tools.get_audio_duration(audio_path)
                         running_args[f'audio_{audio_counter}_duration'] = duration
                         audio_duration_counter += 1
-                    except Exception as e:
+                    except Exception as _:
                         pass
 
 
-        for idx, action in enumerate(self.config):
+        for _, action in enumerate(self.config):
             action_name = list(action.keys())[0]
             match action_name:
                 case 'play_video':

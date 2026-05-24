@@ -12,7 +12,7 @@ raid:
         Handler
     hardsquare:
         Handler
-    jackchiwace:
+    jackchiwac:
         Handler
 follow:
     default:
@@ -20,6 +20,9 @@ follow:
     ...
 command:
     tts:
+        Handler
+sub:
+    default:
         Handler
 """
 handlers : Dict[str, Dict[str, Handler]] = {}
@@ -49,7 +52,10 @@ async def process_events():
         kwargs = {}
         match type(event).__name__:
             case 'ChannelRaidEvent':
-                await chat.twitch.send_a_shoutout(event.event.to_broadcaster_user_id, event.event.from_broadcaster_user_id, event.event.to_broadcaster_user_id)
+                try:
+                    await chat.twitch.send_a_shoutout(event.event.to_broadcaster_user_id, event.event.from_broadcaster_user_id, event.event.to_broadcaster_user_id)
+                except Exception as e:
+                    print(e)
                 event_type = 'raid'
                 broadcaster_user_name = event.event.from_broadcaster_user_name
                 kwargs = {
@@ -60,6 +66,12 @@ async def process_events():
                 handler = handlers.get(event_type, {}).get(broadcaster_user_name) or handlers.get(event_type, {}).get("default")
             case 'ChannelFollowEvent':
                 event_type = 'follow'
+                kwargs = {
+                    "user": event.event.user_name,
+                }
+                handler = handlers.get(event_type, {}).get("default")
+            case 'ChannelSubscribeEvent':
+                event_type = 'sub'
                 kwargs = {
                     "user": event.event.user_name,
                 }
