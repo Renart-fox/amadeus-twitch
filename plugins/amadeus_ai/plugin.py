@@ -4,6 +4,8 @@ from models.globals import set_global, get_global
 from config.amadeus_config import Amadeus_Config
 from twitchAPI.chat import Chat
 
+from .data import amadeus_ai_personnality
+
 PLUGIN_NAME = "amadeus_ai"
 
 class Amadeus(AmadeusPlugin):
@@ -37,7 +39,7 @@ class Amadeus(AmadeusPlugin):
                                 anthropic_cache_instructions='1h',
                                 anthropic_cache_tool_definitions='1h'
                             ))
-        self.amadeus_agent = Agent(model=self.model, system_prompt=self.amadeus_config.amadeus_ai_personnality(), tools=[duckduckgo_search_tool()])
+        self.amadeus_agent = Agent(model=self.model, system_prompt=amadeus_ai_personnality(), tools=[duckduckgo_search_tool()])
         self.message_history = []
 
         print(f"[{PLUGIN_NAME}] Amadeus plugin is now ready to use")
