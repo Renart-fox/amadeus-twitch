@@ -36,35 +36,36 @@ class Amadeus_DB:
             str: Le résumé trouvé en BDD, ou une phrase tampon
         """
         cursor = self.connection.cursor()
-        cursor.execute(f"SELECT username, summary FROM {self.plugin_name}.users WHERE twitch_id = '{id}'")
+        cursor.execute(f"SELECT twitch_id, summary FROM {self.plugin_name}.users WHERE twitch_id = '{id}'")
         res = cursor.fetchone()
         if res is not None:
-            return f"Voilà ce que je sais de l'utilisateur·ice {res[0]} :\n{res[1]}" # type: ignore
+            return f"Voilà ce que je sais de l'utilisateur·ice user_id `{res[0]}` :\n{res[1]}" # type: ignore
         else:
             return f"Je ne connais pas encore l'utilisateur·ice"
 
+    
+    # def get_user_summary_by_username(self, username: str):
+    #     """_summary_
+    #         Récupère le résumé d'un utilisateur par son username Twitch
+    #     Args:
+    #         username (str): Username Twitch
 
-    def get_user_summary_by_username(self, username: str):
-        """_summary_
-            Récupère le résumé d'un utilisateur par son username Twitch
-        Args:
-            username (str): Username Twitch
-
-        Returns:
-            str: Le résumé trouvé en BDD, ou une phrase tampon
-        """
-        # Supprime le @ s'il est passé par erreur
-        if username.startswith('@'):
-            username = username[1:]
+    #     Returns:
+    #         str: Le résumé trouvé en BDD, ou une phrase tampon
+    #     """
+    #     # Supprime le @ s'il est passé par erreur
+    #     if username.startswith('@'):
+    #         username = username[1:]
         
-        cursor = self.connection.cursor()
-        print(f"SELECT username, summary FROM {self.plugin_name}.users WHERE username = '{username}'")
-        cursor.execute(f"SELECT username, summary FROM {self.plugin_name}.users WHERE username = '{username}'")
-        res = cursor.fetchone()
-        print(res)
-        if res is not None:
-            return f"Voilà ce que je sais de l'utilisateur·ice {res[0]} :\n{res[1]}" # type: ignore
-        else:
-            if 'amadeus' in username.lower():
-                return ""
-            return f"Je ne connais pas encore l'utilisateur·ice @{username}."
+    #     cursor = self.connection.cursor()
+    #     print(f"SELECT username, summary FROM {self.plugin_name}.users WHERE username = '{username}'")
+    #     cursor.execute(f"SELECT username, summary FROM {self.plugin_name}.users WHERE username = '{username}'")
+    #     res = cursor.fetchone()
+    #     print(res)
+    #     if res is not None:
+    #         return f"Voilà ce que je sais de l'utilisateur·ice {res[0]} :\n{res[1]}" # type: ignore
+    #     else:
+    #         if 'amadeus' in username.lower():
+    #             return ""
+    #         return f"Je ne connais pas encore l'utilisateur·ice @{username}."
+    

@@ -1,10 +1,12 @@
 from typing import List
 
 from models.amadeus_plugin import AmadeusPlugin
-from models.decorators import on_follow, on_load, on_chat_message
+from models.decorators import on_follow, on_load, on_chat_message, on_custom_message, CustomMessage
 from models.globals import set_global, get_global
+from models.signal_manager import emit_signal
 from config.amadeus_config import Amadeus_Config
-from twitchAPI.chat import Chat
+from twitchAPI.twitch import Twitch
+from twitchAPI.chat import ChatCommand, Chat
 
 from pydantic_ai import Agent
 from pydantic import dataclasses
@@ -41,7 +43,14 @@ class Amadeus(AmadeusPlugin):
         self.write_config(overwrite=False)
         self.read_config()
 
-        self.db = Amadeus_DB(self.plugin_name, self.config_parser)
+        if self.active:
+            self.db = Amadeus_DB(self.plugin_name, self.config_parser)
+
+
+    async def retrieve_amadeus_data(self, cmd: ChatCommand):
+        summary = self.db.get_user_summary_by_id(cmd.user.id)
+        twitch_bot: Twitch = get_global('twitch_bot')
+        await twitch_bot.send_whisper(from_user_id='1232194164', to_user_id=str(cmd.user.id), message=summary)
 
 
     @on_load
@@ -62,30 +71,25 @@ class Amadeus(AmadeusPlugin):
                                 anthropic_cache_tool_definitions='1h'
                             ))
         self.amadeus_agent = Agent(model=self.model, system_prompt=amadeus_ai_personnality(), tools=[duckduckgo_search_tool()])
-        self.find_user_agent = Agent(model=self.model,
-                                     system_prompt="""
-                                     You are an agent whose purpose is to find possible usernames in a message.
-                                     When usernames are found, you must call the `get_twitch_user_and_info` tool on them.
-                                     - If no username is found in the message, stop.
-                                     """,
-                                     output_type=Amadeus_FindUser)
         
         self.message_history = []
         self.session_facts = []
 
         print(f"[{PLUGIN_NAME}] Amadeus plugin is now ready to use")
         chat: Chat = get_global('chat')
-        await chat.send_message(self.amadeus_config.target_channel, "Bonjour tout le monde !")
-
         
-        @self.find_user_agent.tool_plain
-        def get_twitch_user_and_info(username: str):
-            """_summary_
-                Allows me to know if a viewer is known on this stream and if so, gets a summary of my interactions with them
-            Returns:
-                string: summary of the conversation with the viewer
-            """
-            return self.db.get_user_summary_by_username(username)
+        twitch_bot: Twitch = get_global('twitch_bot') # type: ignore
+        user = get_global('main_user')
+        channel_info = await twitch_bot.get_channel_information(broadcaster_id=user.id) # type: ignore
+        game_name = channel_info[0].game_name
+        stream_title = channel_info[0].title
+
+        result = await self.amadeus_agent.run(
+            f'Amadeus, le live commence. La catégorie / le jeu est {game_name}. Le titre du stream est {stream_title}. A toi désormais d\'accueilir le chat !'
+        )
+        self.message_history += result.new_messages()
+        self.session_facts.append(result.output)
+        await self.send_twitch_message(result.output)
 
 
     @on_chat_message
@@ -102,25 +106,13 @@ class Amadeus(AmadeusPlugin):
         if f'@{self.amadeus_config.twitch_bot_username.lower()}' in message.text.lower():
             print(f"[{PLUGIN_NAME}] Amadeus plugin is processing the message with the agent...")
 
-            ### Récupération des informations sur les viewers potentiellement cités dans le message
-            result = await self.find_user_agent.run(
-                message.text
-            )
-            print(f"[{PLUGIN_NAME}] Amadeus plugin got the following result from the agent: {result.output.users_sumarries}")
-            users_summaries = ""
-            if len(result.output.users_sumarries) > 0:
-                users_summaries = "# Éléments connus sur les viewers cités:\n"
-                for summary in result.output.users_sumarries:
-                    if 'amadeus_mk1' not in summary.lower():
-                        users_summaries += summary + '\n'
-            print(users_summaries)
             ### Récupération des événements de stream
             session_facts = '\n'.join(self.session_facts)
 
             ### Message d'Amadeus
             result = await self.amadeus_agent.run(
                 [
-                    f'# Evenements du chat\n{session_facts}\n# Nouveau message de {message.user.name}\n# Ce que je sais de cet·te viewer\n{user_summary}\n{users_summaries}# Contenu du message\n{message.text}'
+                    f'# Evenements du chat\n{session_facts}\n# Nouveau message de user_id: {message.user.id}\n# Ce que je sais de cet·te viewer\n{user_summary}# Contenu du message\n{message.text}'
                 ],
                 message_history=self.message_history,
                 output_type=Amadeus_Output
@@ -149,7 +141,7 @@ class Amadeus(AmadeusPlugin):
                 
                 chunks.append(text[:split_at].strip())
                 text = text[split_at:].strip()
-             
+            
             for chunk in chunks:
                 if chunk:
                     await message.reply(chunk)
@@ -163,6 +155,72 @@ class Amadeus(AmadeusPlugin):
                 self.session_facts.append(res.output)
                 
                 print(f'[{self.plugin_name}] Amadeus has condensed stream events into : {res.output}')
+
+
+    @on_custom_message
+    async def on_custom_message(self, message: CustomMessage):
+        if message.from_plugin == 'streamlabs_charity':
+            if message.data['type'] == 'new_donation':
+                don_info = message.data
+                res = await self.amadeus_agent.run(
+                    f"Amadeus, nous venons de recevoir un don de {don_info['donation_amount_formatted']} de la part de {don_info['donation_from']} pour l'événement caritatif soutenant l'association des Petits Princes pour aider les enfants atteints de maladies graves à réaliser leurs rêves. Je te laisse remercier chaleureusement la personne, tout comme je le fais actuellement !"
+                )
+                text = res.output
+                
+                if don_info['donation_from_twitchname'] != '':
+                    text = f"@{don_info['donation_from_twitchname']} " + text
+
+                await self.send_twitch_message(text)
+
+                c = CustomMessage(self.plugin_name, {'type':'get_session_donations'}, 'streamlabs_charity')
+                await emit_signal('on_custom_message', c)
+            if message.data['type'] == 'session_donations':
+                session_donations = message.data['donations']
+                res = await self.amadeus_agent.run(
+                    f"Amadeus, voici la liste de tous les dons faits au cours de cette session de stream pour l'événement caritatif soutenant l'association des Petits Princes pour aider les enfants atteints de maladies graves à réaliser leurs rêves:\n{session_donations}\nJe te laisse remercier chaleureusement toutes ces personnes, avec la plus grande tendresse et joie possible."
+                )
+                text = res.output
+
+                await self.send_twitch_message(text)
+        
+        elif message.from_plugin == 'amadeus_discord':
+            if message.data['type'] == 'discord_message':
+                res = await self.amadeus_agent.run(
+                    message.data['content']
+                )
+                text = res.output
+                
+                c = CustomMessage(self.plugin_name,
+                                  {
+                                      'type': 'amadeus_discord_message',
+                                      'message': message.data['message'],
+                                      'content': text
+                                  },
+                                  'amadeus_discord')
+                await emit_signal('on_custom_message', c)
+
+    
+    async def send_twitch_message(self, text):
+        chat: Chat = get_global('chat')
+
+        max_len = 485
+            
+        chunks = []
+        while text:
+            if len(text) <= max_len:
+                chunks.append(text)
+                break
+            
+            split_at = text.rfind(' ', max_len - 50, max_len)
+            if split_at == -1 or split_at < max_len - 50:
+                split_at = max_len
+            
+            chunks.append(text[:split_at].strip())
+            text = text[split_at:].strip()
+        
+        for chunk in chunks:
+            if chunk:
+                await chat.send_message(self.amadeus_config.target_channel, chunk)
 
 
 exported_class = Amadeus

@@ -30,6 +30,7 @@ class Handler():
             match action_name:
                 case 'play_video':
                     video_path = action[action_name].get('video', '')
+                    print(video_path)
                     duration = tools.get_video_duration(video_path)
                     running_args[f'video_{video_counter}_duration'] = duration
                     video_duration_counter += 1
@@ -138,7 +139,7 @@ class Handler():
                     
                     text_input_id, text_scene_item_id = self.obs_manager.create_input(
                         current_scene_name,
-                        input_kind="text_gdiplus_v3",
+                        input_kind="text_ft2_source_v2",
                         input_settings={
                             "text": text,
                             "font": {

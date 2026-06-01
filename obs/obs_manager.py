@@ -57,6 +57,8 @@ class OBS_Manager(metaclass=SingletonMeta):
             inputKind=input_kind,
             inputSettings=input_settings
         ))
+        print(res)
+        print(res.datain)
         return (res.datain['inputUuid'], res.datain['sceneItemId'])
     
 

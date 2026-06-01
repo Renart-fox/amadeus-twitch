@@ -14,5 +14,6 @@ def register_signal(name: str, plugin: models.amadeus_plugin.AmadeusPlugin, hand
 async def emit_signal(name: str, *args, **kwargs):
     handlers = signals.get(name, [])
     for plugin, handler in handlers:
-        if plugin.active:
+        # Check si le plugin est actif ou, dans le cas d'un message custom, que le plugin soit target ou que le message s'adresse à tout le monde
+        if plugin.active and (name != 'on_custom_message' or (args[0].to_plugin is None or args[0].to_plugin == plugin.plugin_name)):
             await handler(*args, **kwargs)

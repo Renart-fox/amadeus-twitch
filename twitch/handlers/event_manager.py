@@ -76,6 +76,12 @@ async def process_events():
                     "user": event.event.user_name,
                 }
                 handler = handlers.get(event_type, {}).get("default")
+            case 'ChannelSubscriptionMessageEvent':
+                event_type = 'resub'
+                kwargs = {
+                    "user": event.event.user_name,
+                }
+                handler = handlers.get(event_type, {}).get("default")
             case 'ChannelPointsCustomRewardRedemptionAddEvent':
                 event_type = 'command'
                 kwargs = {

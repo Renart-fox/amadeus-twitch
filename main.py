@@ -1,5 +1,6 @@
 import json, asyncio, threading
 import datetime
+import uuid
 
 import importlib.util
 import sys
@@ -21,7 +22,7 @@ from twitchAPI.type import AuthScope, ChatEvent
 from twitchAPI.helper import first
 from twitchAPI.chat import Chat, EventData, ChatCommand, ChatMessage
 from twitchAPI.eventsub.websocket import EventSubWebsocket
-from twitchAPI.object.eventsub import ChannelPointsCustomRewardRedemptionAddEvent, ChannelRaidEvent, ChannelRaidData, ChannelFollowEvent, ChannelFollowData, ChannelSubscribeEvent, ChannelSubscribeData
+from twitchAPI.object.eventsub import ChannelPointsCustomRewardRedemptionAddEvent, ChannelRaidEvent, ChannelRaidData, ChannelFollowEvent, ChannelFollowData, ChannelSubscribeEvent, ChannelSubscribeData, StreamOnlineEvent, ChannelSubscriptionMessageEvent, ChannelSubscriptionMessageData
 from twitchAPI.object.eventsub import ChannelPointsCustomRewardRedemptionData, Reward
 
 from obswebsocket import obsws, requests
@@ -33,9 +34,6 @@ from pydantic_ai import Agent, BinaryContent, RunContext
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
 from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
 from pydantic_ai.providers.anthropic import AnthropicProvider
-
-import speech_recognition as sr
-import pyaudio
 
 from contextlib import asynccontextmanager
 
@@ -58,7 +56,6 @@ amadeus_config = Amadeus_Config()
 
 # ToDo : Transformer en plugin
 obs_manager = OBS_Manager(amadeus_config.obs_host, amadeus_config.obs_port, amadeus_config.obs_password)
-
 """
 current_scene_name = obs_manager.get_current_scene_name()
 scene_items = obs_manager.get_scene_item_list(current_scene_name)
@@ -137,8 +134,6 @@ async def on_chat_ready(event: EventData):
     print("Chat is ready!")
     await event.chat.join_room(amadeus_config.target_channel)
 
-    await asyncio.sleep(5)  # Attendre que le chat soit complètement prêt avant d'émettre le signal
-
     await set_chat(event.chat)
     await emit_signal("on_load")
 
@@ -156,13 +151,13 @@ async def on_follow(event: ChannelFollowEvent):
 async def on_prout(cmd: ChatCommand):
     await cmd.reply('Ca pue')
 
-    audio_duration = tools.get_audio_duration('F:\\Twitch\\Amadeus\\assets\\sounds\\Fart with reverb sound effect.wav')
+    audio_duration = tools.get_audio_duration('/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/Fart with reverb sound effect.wav')
 
     audio_input_id, audio_scene_item_id = obs_manager.create_input(
         scene_name=obs_manager.get_current_scene_name(),
         input_kind="ffmpeg_source",
         input_settings={
-            "local_file": 'F:\\Twitch\\Amadeus\\assets\\sounds\\Fart with reverb sound effect.wav',
+            "local_file": '/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/Fart with reverb sound effect.wav',
             "is_local_file": True,
             "looping": False
         }
@@ -191,15 +186,6 @@ async def on_discord(cmd: ChatCommand):
     await chat.send_message('mielikki_fox', 'https://discord.gg/He5aJyPhwt')
 
 
-async def on_gsh(cmd: ChatCommand):
-    global chat
-    await chat.send_message('mielikki_fox', """
-                            Du 4 au 7 juin, je serai en live pendant le Game Stream Heroes !
-                            C'est un événement caritatif pour soutenir l'association Petits Princes, qui réalise les rêves d'enfants gravement malades.
-                            Au programme: Undertale, Silksong, Cyberpunk 2077, du JdR, et plein d'autres choses !
-                            """)
-
-
 async def on_reward_redeemed(event: ChannelPointsCustomRewardRedemptionAddEvent):
     print(event)
     await add_event(event)
@@ -209,14 +195,17 @@ async def on_raid(event: ChannelRaidEvent):
     await add_event(event)
 
 
-async def on_goals(cmd: ChatCommand):
-    c = ChannelPointsCustomRewardRedemptionAddEvent()
-    c.event = ChannelPointsCustomRewardRedemptionData()
-    c.event.reward = Reward()
-    c.event.user_input = ''
-    c.event.reward.title = 'Donation Goals'
-    
-    await add_event(c)
+async def on_stream_started(event: StreamOnlineEvent):
+    twitch_bot: Twitch = get_global('twitch_bot') # type: ignore
+    user = get_global('main_user')
+    channel_info = await twitch_bot.get_channel_information(broadcaster_id=user.id) # type: ignore
+    game_name = channel_info[0].game_name
+    stream_title = channel_info[0].title
+
+    set_global('current_category', game_name)
+    set_global('stream_title', stream_title)
+
+    await emit_signal('on_stream_start')
 
 
 async def run_twitch_backend():
@@ -236,13 +225,18 @@ async def run_twitch_backend():
     helper_bot = UserAuthenticationStorageHelper(twitch_bot, amadeus_config.scopes, storage_path=PurePath(USER_CONFIG_DIR, './bot_auth.json'))
     await helper_bot.bind()
 
+    set_global('twitch_bot', twitch_bot)
+
     chat = await Chat(twitch_bot)
     set_global('chat', chat)
+    set_global('current_stream_session', str(uuid.uuid4()))
 
     user = None
 
     async for u in twitch.get_users(logins=[amadeus_config.target_channel]):
         user = u
+
+    set_global('main_user', user)
 
     eventsub = EventSubWebsocket(twitch)
     eventsub.start()
@@ -250,15 +244,15 @@ async def run_twitch_backend():
     await eventsub.listen_channel_raid(to_broadcaster_user_id=user.id, callback=add_event) # type: ignore
     await eventsub.listen_channel_follow_v2(broadcaster_user_id=user.id, moderator_user_id=user.id, callback=add_event) # type: ignore
     await eventsub.listen_channel_subscribe(broadcaster_user_id=user.id, callback=add_event) # type: ignore
+    await eventsub.listen_channel_subscription_message(broadcaster_user_id=user.id, callback=add_event) # type: ignore
+    await eventsub.listen_stream_online(broadcaster_user_id=user.id, callback=on_stream_started) # type: ignore
 
     chat.register_event(ChatEvent.READY, on_chat_ready)
 
     chat.register_event(ChatEvent.MESSAGE, on_message)
 
     chat.register_command('prout', on_prout)
-    chat.register_command('gsh', on_gsh)
     chat.register_command('discord', on_discord)
-    chat.register_command('goals', on_goals)
     #chat.register_command('tourne', on_tourne)
 
     chat.start()
@@ -267,7 +261,7 @@ async def run_twitch_backend():
         - send_message:
             text: "Merci {raider} pour le raid !"
         - play_video:
-            video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\Jet crash on green screen.mp4"
+            video : "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/videos/Jet crash on green screen.mp4"
             volume: -30.0
         - transform:
             input: "{video_0}"
@@ -279,7 +273,7 @@ async def run_twitch_backend():
             filter: "green screen"
             input_uuid : "{video_0_uuid}"
         - play_sound:
-            sound: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\sounds\\\\Square_Coucou Miel.wav"
+            sound: "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/Square_Coucou Miel.wav"
             volume: 0.0
         - show_text:
             text: "{raider}\\nvient de tuer {viewers} personnes !!!"
@@ -303,7 +297,7 @@ async def run_twitch_backend():
         - send_message:
             text: "Merci {raider} pour le raid !"
         - play_video:
-            video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\tv_time.mp4"
+            video : "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/videos/tv_time.mp4"
             volume: -10.0
         - show_text:
             text: "{raider}\\narrive avec {viewers} personnes !!!"
@@ -326,11 +320,11 @@ async def run_twitch_backend():
     
     default_follow_handler = Handler('''
         - play_video:
-            video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\mayuri_wave.gif"
+            video : "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/videos/mayuri_wave.gif"
             volume: -20.0
             loop: True
         - play_sound:
-            sound: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\sounds\\\\Tuturu - Sound Effect (HD).mp3"
+            sound: "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/Tuturu - Sound Effect (HD).mp3"
             volume: -30.0
         - transform:
             input: "{video_0}"
@@ -364,7 +358,7 @@ async def run_twitch_backend():
         - show_image:
             image: "{screenshot}"
         - play_video:
-            video: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\orsonwelles.mov"
+            video: "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/videos/orsonwelles.mov"
             volume: -10.0
         - wait:
             duration: "{video_0_duration}"
@@ -378,43 +372,20 @@ async def run_twitch_backend():
         - text_to_speech:
             text: "{user_message}"
         - play_sound:
-            sound: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\sounds\\\\output_reverb.mp3"
+            sound: "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/output_reverb.mp3"
         - wait:
             duration: "{audio_0_duration}"
         - remove_input:
             item: "{audio_0}"
     ''')
-
-    message_gsh = TimerEventHandler('''
-        - play_video:
-            video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\spot GSH 2026 HQ.gif"
-            volume: -10.0
-        - transform:
-            input: "{video_0}"
-            settings:
-                positionX: 960
-                positionY: 0
-                alignment: 4
-        - send_message:
-            text: >
-                    Du 4 au 7 juin, je serai en live pendant le Game Stream Heroes !
-                    C'est un événement caritatif pour soutenir l'association Petits Princes, qui réalise les rêves d'enfants gravement malades.
-                    Au programme: Undertale, Silksong, Cyberpunk 2077, du JdR, et plein d'autres choses !
-        - wait:
-            duration: "{video_0_duration}"
-        - remove_input:
-            item: "{video_0}"
-    ''', 3600, {
-        'chat': chat
-    })
     
     default_sub_handler = Handler('''
         - play_video:
-            video : "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\Makise.Kurisu.full.2733824.gif"
+            video : "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/videos/Makise.Kurisu.full.2733824.gif"
             volume: -20.0
             loop: True
         - play_sound:
-            sound: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\sounds\\\\Zone Clear - Sonic Pinball Party.mp3"
+            sound: "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/Zone Clear - Sonic Pinball Party.mp3"
             volume: -30.0
         - transform:
             input: "{video_0}"
@@ -440,28 +411,18 @@ async def run_twitch_backend():
             item: "{text_0}"
                                   ''')
 
-    donation_goals_handler = Handler('''
-        - show_image:
-            image: "F:\\\\Twitch\\\\Amadeus\\\\assets\\\\videos\\\\donation_goals.png"
-        - wait:
-            duration: 20
-        - remove_input:
-            item: "{image_0}"
-                                     ''')
-
     await register_handler('raid', raid_hardsquare_handler, 'HardSquare')
     await register_handler('raid', default_raid_handler, 'default')
     await register_handler('follow', default_follow_handler, 'default')
     await register_handler('sub', default_sub_handler, 'default')
+    await register_handler('resub', default_sub_handler, 'default')
     await register_handler('command', orson_welles_handler, 'Orson Welles')
     await register_handler('command', tts_handler, 'TTS')
-    await register_handler('command', donation_goals_handler, 'Donation Goals')
-    
-
-    await on_follow(None)
 
     """
     await asyncio.sleep(5)
+    """
+    """
     c = ChannelRaidEvent()
     c.event = ChannelRaidData()
     c.event.from_broadcaster_user_name = 'HardSquare'
@@ -483,6 +444,10 @@ async def run_twitch_backend():
     c.event.user_name = 'flumble3'
     await add_event(c)
     """
+    c = ChannelSubscriptionMessageEvent()
+    c.event = ChannelSubscriptionMessageData()
+    c.event.user_name = 'JackChiwac'
+    await add_event(c)
     """
     try:
         input('press ENTER to stop\n')

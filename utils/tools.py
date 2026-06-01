@@ -2,7 +2,6 @@ import librosa
 import subprocess
 import json
 import edge_tts
-from googletrans import Translator
 
 # Uses librosa to get the duration of an audio file, and adds 1 second to it to account for any potential discrepancies.
 def get_audio_duration(file_path):
@@ -30,12 +29,6 @@ def apply_reverb_ffmpeg(input_path, output_path):
         '-loglevel', 'error'
     ]
     subprocess.run(command, check=True)
-
-
-async def translate_text(text):
-    async with Translator() as translator:
-        result = await translator.translate(text, dest='ja')
-        return result.text
 
 
 async def create_text_to_speech_audio(text) -> float:

@@ -25,7 +25,17 @@ class Amadeus_Config(metaclass=SingletonMeta):
                 'client_secret': '',
                 'target_channel': '',
                 'twitch_bot_username': '',
-                'scopes': 'chat:read,chat:edit,channel:read:redemptions,channel:manage:redemptions,moderator:read:followers,channel:read:subscriptions,channel:moderate,moderator:manage:shoutouts'
+                'scopes': 'chat:read,\
+                           chat:edit,\
+                           channel:read:redemptions,\
+                           channel:manage:redemptions,\
+                           moderator:read:followers,\
+                           channel:read:subscriptions,\
+                           channel:moderate,\
+                           moderator:manage:shoutouts,\
+                           user:manage:whispers,\
+                           moderator:manage:announcements',
+                'channel_url': ''
             }
             with open(MAIN_CONFIG_PATH, 'w') as configfile:
                 self.config_parser.write(configfile)
@@ -39,6 +49,7 @@ class Amadeus_Config(metaclass=SingletonMeta):
             self.target_channel = self.config_parser.get('TWITCH', 'target_channel')
             self.client_id = self.config_parser.get('TWITCH', 'client_id')
             self.client_secret = self.config_parser.get('TWITCH', 'client_secret')
+            self.channel_url = self.config_parser.get('TWITCH', 'channel_url')
             self.scopes = [AuthScope(scope) for scope in self.config_parser.get('TWITCH', 'scopes').split(',')]
             
 
