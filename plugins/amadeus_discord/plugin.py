@@ -38,7 +38,7 @@ class Amadeus_Discord(AmadeusPlugin):
             webhook = Webhook.from_url(self.config_parser[self.plugin_name]['webhook'],
                                         session=session,
                                         bot_token=self.config_parser[self.plugin_name]['token'])
-            await webhook.send(f'Miel lance un live sur {category} || {stream_title} || {Amadeus_Config().channel_url}')
+            await webhook.send(f'@everyone Miel lance un live sur {category} - {stream_title} - {Amadeus_Config().channel_url}')
 
 
     @on_custom_message

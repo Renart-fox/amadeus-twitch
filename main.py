@@ -444,10 +444,12 @@ async def run_twitch_backend():
     c.event.user_name = 'flumble3'
     await add_event(c)
     """
+    """
     c = ChannelSubscriptionMessageEvent()
     c.event = ChannelSubscriptionMessageData()
     c.event.user_name = 'JackChiwac'
     await add_event(c)
+    """
     """
     try:
         input('press ENTER to stop\n')
@@ -457,7 +459,9 @@ async def run_twitch_backend():
         await twitch.close()
     """
 
+
 if __name__ == "__main__":
+    set_global('fastapi_app', app)
     print('========================================')
     print('PLUGINS')
     print('========================================')
@@ -465,4 +469,5 @@ if __name__ == "__main__":
     print('========================================')
     print('AMADEUS SERVER')
     print('========================================')
-    uvicorn.run(app, host="localhost", port=8080)
+    socketio_app = get_global('socketio_app')
+    uvicorn.run(socketio_app, host="localhost", port=8080)

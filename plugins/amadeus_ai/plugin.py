@@ -85,7 +85,7 @@ class Amadeus(AmadeusPlugin):
         stream_title = channel_info[0].title
 
         result = await self.amadeus_agent.run(
-            f'Amadeus, le live commence. La catégorie / le jeu est {game_name}. Le titre du stream est {stream_title}. A toi désormais d\'accueilir le chat !'
+            f'Amadeus, le live commence. La catégorie / le jeu est {game_name}. Miel indique que le titre de son stream est le suivant : "{stream_title}". A toi désormais d\'accueilir le chat !'
         )
         self.message_history += result.new_messages()
         self.session_facts.append(result.output)

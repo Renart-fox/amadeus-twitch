@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Socket.IO Client</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 2rem auto;
+        }
+
+        #messages {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 1rem;
+        }
+
+        input {
+            width: 75%;
+            padding: 8px;
+        }
+
+        button {
+            padding: 8px 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Client</h1>
+
+    <div id="status">Connecting...</div>
+
+    <div id="messages"></div>
+
+    <input id="messageInput" type="text" placeholder="Type a message">
+    <button id="sendButton">Send</button>
+
+    <script>
+        const statusEl = document.getElementById("status");
+        const messagesEl = document.getElementById("messages");
+        const inputEl = document.getElementById("messageInput");
+        const sendButton = document.getElementById("sendButton");
+
+        // Connect to localhost:8080
+        const socket = io("http://localhost:8080");
+
+        socket.on("connect", () => {
+            console.log("connected", socket.id);
+        });
+
+        socket.on("connect_error", (err) => {
+            console.error(err);
+        });
+
+        socket.on("chat_message", (data) => {
+            const messageEl = document.createElement("div");
+            messageEl.textContent = `${data.user}: ${data.message}`;
+            messagesEl.appendChild(messageEl);
+        });
+    </script>
+</body>
+</html>

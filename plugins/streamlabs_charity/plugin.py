@@ -56,7 +56,8 @@ class StreamlabsCharity(AmadeusPlugin):
 
     def on_event(self, data):
         if data['type'] == 'streamlabscharitydonation':
-            donation_to = data['message'][0]['name']
+            print(data)
+            donation_to = data['message'][0]['to']['name']
             if donation_to == Amadeus_Config().target_channel:
                 don_info = {
                     'type': 'new_donation',
@@ -85,6 +86,8 @@ class StreamlabsCharity(AmadeusPlugin):
             print("Error getting socket token:")
             print(response.text)
             return None
+
+        print(response.text)
 
         return response.json()
 
