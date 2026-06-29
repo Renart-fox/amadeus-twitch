@@ -24,6 +24,10 @@ def on_stream_end(func):
     func._signal_name = "on_stream_end"
     return func
 
+def on_stream_update(func):
+    func._signal_name = "on_stream_update"
+    return func
+
 
 class CustomMessage:
     from_plugin: str

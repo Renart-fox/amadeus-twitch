@@ -133,3 +133,11 @@ class OBS_Manager(metaclass=SingletonMeta):
             sceneItemId=item_id
         ))
         return res.datain['sceneItemIndex']
+
+
+    def set_input_settings(self, input_id: str, settings: Dict):
+        res = self.ws.call(requests.SetInputSettings(
+            inputUuid=input_id,
+            inputSettings=settings
+        ))
+        return res

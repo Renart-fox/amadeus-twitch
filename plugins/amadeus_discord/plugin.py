@@ -2,7 +2,7 @@ import aiohttp
 
 from models.amadeus_plugin import AmadeusPlugin
 from config.amadeus_config import Amadeus_Config
-from models.decorators import on_follow, on_load, on_chat_message, on_custom_message, on_stream_start, CustomMessage
+from models.decorators import on_follow, on_load, on_chat_message, on_custom_message, on_stream_start, CustomMessage, on_stream_update
 from models.globals import set_global, get_global
 from models.signal_manager import emit_signal
 
@@ -38,7 +38,34 @@ class Amadeus_Discord(AmadeusPlugin):
             webhook = Webhook.from_url(self.config_parser[self.plugin_name]['webhook'],
                                         session=session,
                                         bot_token=self.config_parser[self.plugin_name]['token'])
-            await webhook.send(f'@everyone Miel lance un live sur {category} - {stream_title} - {Amadeus_Config().channel_url}')
+            ROLE_CODE = '<@&1513375155643220010>'
+            ROLE_DIVERS = '<@&1513375235435532479>'
+            ROLE_JEUX = '<@&1513375194897715323>'
+            ROLE_TOUT = '<@&1513375278964019312>'
+            main_role = ROLE_JEUX
+            main_role = ROLE_CODE if 'software' in category.lower() else main_role
+            await webhook.send(f'{ROLE_TOUT} {main_role} Miel lance un live sur {category} ! - {stream_title} - {Amadeus_Config().channel_url}')
+
+    
+    @on_stream_update
+    async def on_stream_update(self):
+        from discord import Webhook
+
+        category = get_global('current_category')
+        stream_title = get_global('stream_title')
+
+        async with aiohttp.ClientSession() as session:
+            webhook = Webhook.from_url(self.config_parser[self.plugin_name]['webhook'],
+                                        session=session,
+                                        bot_token=self.config_parser[self.plugin_name]['token'])
+            ROLE_CODE = '<@&1513375155643220010>'
+            ROLE_DIVERS = '<@&1513375235435532479>'
+            ROLE_JEUX = '<@&1513375194897715323>'
+            ROLE_TOUT = '<@&1513375278964019312>'
+            main_role = ROLE_JEUX
+            main_role = ROLE_DIVERS if 'just chatting' in category.lower() else main_role
+            main_role = ROLE_CODE if 'software' in category.lower() else main_role
+            await webhook.send(f'{ROLE_TOUT} {main_role} Miel on change de catégorie et on part sur {category} ! - {stream_title} - {Amadeus_Config().channel_url}')
 
 
     @on_custom_message

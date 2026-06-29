@@ -4,3 +4,6 @@ obs/*.png
 assets/*
 __pycache__
 *token*
+*.mp3
+*.wav
+chroma/

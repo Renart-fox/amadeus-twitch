@@ -22,13 +22,14 @@ from twitchAPI.type import AuthScope, ChatEvent
 from twitchAPI.helper import first
 from twitchAPI.chat import Chat, EventData, ChatCommand, ChatMessage
 from twitchAPI.eventsub.websocket import EventSubWebsocket
-from twitchAPI.object.eventsub import ChannelPointsCustomRewardRedemptionAddEvent, ChannelRaidEvent, ChannelRaidData, ChannelFollowEvent, ChannelFollowData, ChannelSubscribeEvent, ChannelSubscribeData, StreamOnlineEvent, ChannelSubscriptionMessageEvent, ChannelSubscriptionMessageData
+from twitchAPI.object.eventsub import ChannelPointsCustomRewardRedemptionAddEvent, ChannelRaidEvent, ChannelRaidData, ChannelFollowEvent, ChannelFollowData, ChannelSubscribeEvent, ChannelSubscribeData, StreamOnlineEvent, ChannelSubscriptionMessageEvent, ChannelSubscriptionMessageData, ChannelUpdateEvent
 from twitchAPI.object.eventsub import ChannelPointsCustomRewardRedemptionData, Reward
 
 from obswebsocket import obsws, requests
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 
 from pydantic_ai import Agent, BinaryContent, RunContext
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
@@ -56,9 +57,12 @@ amadeus_config = Amadeus_Config()
 
 # ToDo : Transformer en plugin
 obs_manager = OBS_Manager(amadeus_config.obs_host, amadeus_config.obs_port, amadeus_config.obs_password)
+
 """
 current_scene_name = obs_manager.get_current_scene_name()
 scene_items = obs_manager.get_scene_item_list(current_scene_name)
+
+
 
 webcam_scene_item_id = ''
 for item in scene_items:
@@ -140,6 +144,7 @@ async def on_chat_ready(event: EventData):
 
 async def on_message(msg: ChatMessage):
     set_global('chat', msg.chat)
+    print(msg)
     await emit_signal("on_chat_message", msg)
 
 
@@ -208,6 +213,19 @@ async def on_stream_started(event: StreamOnlineEvent):
     await emit_signal('on_stream_start')
 
 
+async def on_stream_update(event: ChannelUpdateEvent):
+    twitch_bot: Twitch = get_global('twitch_bot') # type: ignore
+    user = get_global('main_user')
+    channel_info = await twitch_bot.get_channel_information(broadcaster_id=user.id) # type: ignore
+    game_name = channel_info[0].game_name
+    stream_title = channel_info[0].title
+
+    set_global('current_category', game_name)
+    set_global('stream_title', stream_title)
+
+    await emit_signal('on_stream_update')
+
+
 async def run_twitch_backend():
     global chat
 
@@ -246,6 +264,7 @@ async def run_twitch_backend():
     await eventsub.listen_channel_subscribe(broadcaster_user_id=user.id, callback=add_event) # type: ignore
     await eventsub.listen_channel_subscription_message(broadcaster_user_id=user.id, callback=add_event) # type: ignore
     await eventsub.listen_stream_online(broadcaster_user_id=user.id, callback=on_stream_started) # type: ignore
+    await eventsub.listen_channel_update_v2(broadcaster_user_id=user.id, callback=on_stream_update) # type: ignore
 
     chat.register_event(ChatEvent.READY, on_chat_ready)
 
@@ -435,7 +454,7 @@ async def run_twitch_backend():
     """
     c = ChannelFollowEvent()
     c.event = ChannelFollowData()
-    c.event.user_name = 'BravoLesRolistesDu79'
+    c.event.user_name = 'ptite_etoileee'
     await on_follow(c)
     """
     """
@@ -458,6 +477,11 @@ async def run_twitch_backend():
         await eventsub.stop()
         await twitch.close()
     """
+
+
+@app.get("/test")
+async def test_endpoint():
+    return HTMLResponse('<iframe src="https://player.twitch.tv/?channel=jackchiwac&parent=localhost" frameborder="0" allowfullscreen="true" scrolling="no" height="1080" width="1920" autoplay="true" muted="false"></iframe>')
 
 
 if __name__ == "__main__":

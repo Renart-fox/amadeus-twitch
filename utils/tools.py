@@ -34,6 +34,6 @@ def apply_reverb_ffmpeg(input_path, output_path):
 async def create_text_to_speech_audio(text) -> float:
     #translation = await translate_text(text)
     communicate = edge_tts.Communicate(text, voice="fr-CH-ArianeNeural", pitch="+11Hz", rate="+33%")
-    await communicate.save("F:\\Twitch\\Amadeus\\assets\\sounds\\output.mp3")
-    apply_reverb_ffmpeg("F:\\Twitch\\Amadeus\\assets\\sounds\\output.mp3", "F:\\Twitch\\Amadeus\\assets\\sounds\\output_reverb.mp3")
-    return get_audio_duration("F:\\Twitch\\Amadeus\\assets\\sounds\\output_reverb.mp3")
+    await communicate.save("/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/output.mp3")
+    apply_reverb_ffmpeg("/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/output.mp3", "/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/output_reverb.mp3")
+    return get_audio_duration("/run/media/mielikki/Amadeus/Twitch/Amadeus/assets/sounds/output_reverb.mp3")
